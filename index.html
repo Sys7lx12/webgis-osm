@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>WebGIS cơ bản với Leaflet</title>
+  <title>WebGIS cơ bản với Leaflet, thêm lớp nền</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -17,7 +17,7 @@
 </head>
 <body>
 
-<h3 style="text-align:center;">WebGIS cơ bản với Leaflet.js</h3>
+<h3 style="text-align:center;">WebGIS cơ bản với Leaflet.js, thêm lớp nền ảnh vệ tinh</h3>
 <div id="map"></div>
 
 <!-- Leaflet JS -->
@@ -25,17 +25,48 @@
 
 <script>
   // Khởi tạo bản đồ và đặt vị trí trung tâm (tọa độ Việt Nam)
-  var map = L.map('map').setView([14.0583, 108.2772], 6);
+  var map = L.map('map').setView([20.989470032335152, 105.79574580114927], 17);
 
-  // Thêm lớp nền từ OpenStreetMap
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+ // Các layer nền
+  var googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0','mt1','mt2','mt3'],
+    attribution: '© Google Maps'
+  });
+
+  var googleSatellite = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0','mt1','mt2','mt3'],
+    attribution: '© Google Satellite'
+  });
+
+  var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0','mt1','mt2','mt3'],
+    attribution: '© Google Terrain'
+  });
+
+  var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap contributors'
-  }).addTo(map);
+  });
+
+  // Thêm mặc định là Google Hybrid
+  osm.addTo(map);
+
+    // Tạo control chuyển đổi layer nền
+  var baseMaps = {
+    "🛰️ Google Hybrid": googleHybrid,
+    "🌍 OpenStreetMap": osm,
+    "🗺️ Google Satellite": googleSatellite,
+    "⛰️ Google Terrain": googleTerrain
+  };
+
+  L.control.layers(baseMaps).addTo(map);
 
   // Thêm 1 marker (ví dụ tại Hà Nội)
-  var marker = L.marker([21.0285, 105.8544]).addTo(map);
-  marker.bindPopup("<b>Hà Nội</b><br>Thủ đô của Việt Nam").openPopup();
+  var marker = L.marker([20.989716969145746, 105.79573486594445]).addTo(map);
+  marker.bindPopup("Trường Đại học Hà Nội").openPopup();
 </script>
 
 </body>
