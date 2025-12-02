@@ -55,66 +55,68 @@
   };
   
   // Thêm 1 marker (ví dụ tại Hà Nội)
-  var marker = L.marker([20.989716969145746, 105.79573486594445]).addTo(map);
-  marker.bindPopup("Trường Đại học Hà Nội").openPopup();
+  //var marker = L.marker([20.989716969145746, 105.79573486594445]).addTo(map);
+  //marker.bindPopup("Trường Đại học Hà Nội").openPopup();
   
   // Load file GeoJSON các bang Mỹ
-  fetch('polygon_stateusa_27112025.geojson')
-    .then(response => response.json())
-    .then(data => {
-      var usaStatesLayer = L.geoJSON(data, {
-        style: function(feature) {
-          return {
-            color: '#3388ff',
-            weight: 2,
-            opacity: 0.8,
-            fillColor: '#88ccff',
-            fillOpacity: 0.3
-          };
-        },
+fetch('polygon_stateusa_27112025.geojson')
+  .then(response => response.json())
+  .then(data => {
+    // Kiểm tra thuộc tính
+    console.log('Thuộc tính:', data.features[0].properties);
+    
+    var usaStatesLayer = L.geoJSON(data, {
+      style: function(feature) {
+        return {
+          color: '#2c3e50',
+          weight: 2,
+          opacity: 1,
+          fillColor: '#' + Math.floor(Math.random()*16777215).toString(16),
+          fillOpacity: 0.6
+        };
+      },
+      
+      onEachFeature: function(feature, layer) {
+        var popupContent = '<div style="font-family: Arial;">';
+        popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 Thông tin Bang</h3>';
         
-        onEachFeature: function(feature, layer) {
-          var popupContent = '<div style="font-family: Arial;">';
-          popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 Bang Mỹ</h3>';
-          
-          for (var prop in feature.properties) {
-            popupContent += '<b>' + prop + ':</b> ' + feature.properties[prop] + '<br>';
-          }
-          popupContent += '</div>';
-          
-          layer.bindPopup(popupContent);
-          
-          layer.on({
-            mouseover: function(e) {
-              var layer = e.target;
-              layer.setStyle({
-                weight: 4,
-                color: '#ff6600',
-                fillOpacity: 0.6
-              });
-            },
-            mouseout: function(e) {
-              usaStatesLayer.resetStyle(e.target);
-            },
-            click: function(e) {
-              map.fitBounds(e.target.getBounds());
-            }
-          });
+        for (var prop in feature.properties) {
+          popupContent += '<b>' + prop + ':</b> ' + feature.properties[prop] + '<br>';
         }
-      }).addTo(map);
-      
-      map.fitBounds(usaStatesLayer.getBounds());
-      
-      var overlayMaps = {
-        "🗺️ Bang Mỹ": usaStatesLayer
-      };
-      L.control.layers(baseMaps, overlayMaps).addTo(map);
-      
-    })
-    .catch(error => {
-      console.error('Lỗi khi load GeoJSON:', error);
-      alert('Không thể tải file. Kiểm tra console.');
-    });
+        popupContent += '</div>';
+        
+        layer.bindPopup(popupContent);
+        
+        layer.on({
+          mouseover: function(e) {
+            var layer = e.target;
+            layer.setStyle({
+              weight: 4,
+              color: '#ff6600',
+              fillOpacity: 0.9
+            });
+          },
+          mouseout: function(e) {
+            usaStatesLayer.resetStyle(e.target);
+          },
+          click: function(e) {
+            map.fitBounds(e.target.getBounds());
+          }
+        });
+      }
+    }).addTo(map);
+    
+    map.fitBounds(usaStatesLayer.getBounds());
+    
+    var overlayMaps = {
+      "🗺️ Bang Mỹ": usaStatesLayer
+    };
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
+  })
+  .catch(error => {
+    console.error('Lỗi:', error);
+  });
 </script>
 </body>
 </html>
+
