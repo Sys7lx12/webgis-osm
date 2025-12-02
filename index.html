@@ -12,101 +12,34 @@
       width: 100%;
     }
     
-    /* Style cho các nút điều khiển */
-    .custom-control {
+    /* Style cho thanh trượt opacity */
+    .opacity-control {
       background: white;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-      margin: 10px;
-    }
-    
-    .control-button {
-      background: #3388ff;
-      color: white;
-      border: none;
-      padding: 8px 15px;
+      padding: 10px 15px;
       border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      margin: 5px 0;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    }
+    
+    .opacity-control label {
       display: block;
-      width: 100%;
-      transition: background 0.3s;
-    }
-    
-    .control-button:hover {
-      background: #2266dd;
-    }
-    
-    .control-button.active {
-      background: #ff6600;
-    }
-    
-    .toggle-label {
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-    }
-    
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 24px;
-      margin-right: 10px;
-    }
-    
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 24px;
-    }
-    
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    
-    input:checked + .slider {
-      background-color: #ff6600;
-    }
-    
-    input:checked + .slider:before {
-      transform: translateX(26px);
-    }
-    
-    /* Style cho label hiển thị REF trên polygon */
-    .state-label {
-      background: rgba(255, 255, 255, 0.9);
-      border: 2px solid #2c3e50;
-      border-radius: 5px;
-      padding: 3px 8px;
+      margin-bottom: 5px;
       font-weight: bold;
-      font-size: 13px;
-      color: #2c3e50;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      white-space: nowrap;
+      color: #333;
+    }
+    
+    .opacity-control input[type="range"] {
+      width: 150px;
+      cursor: pointer;
+    }
+    
+    .opacity-value {
+      display: inline-block;
+      margin-left: 10px;
+      color: #ff6600;
+      font-weight: bold;
+      min-width: 30px;
     }
   </style>
 </head>
@@ -117,14 +50,17 @@
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Khởi tạo bản đồ - VỊ TRÍ MẶC ĐỊNH SẼ ĐƯỢC CÀI ĐẶT SAU
+  // Khởi tạo bản đồ
   var map = L.map('map');
   
-  // Biến để lưu view mặc định (sẽ được cập nhật sau khi load GeoJSON)
+  // Biến để lưu view mặc định
   var defaultView = null;
   
-  // Biến để lưu trạng thái auto zoom
-  var autoZoomEnabled = true;
+  // Biến để lưu layer GeoJSON
+  var usaStatesLayer = null;
+  
+  // Biến để lưu độ trong suốt hiện tại
+  var currentOpacity = 0.5;
   
   // Các layer nền
   var googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
@@ -150,79 +86,111 @@
     attribution: '© OpenStreetMap contributors'
   });
   
+  // Thêm các lớp CARTO
+  var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd'
+  });
+  
+  var cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd'
+  });
+  
+  var cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd'
+  });
+  
   // Thêm mặc định là OpenStreetMap
   osm.addTo(map);
   
-  // Tạo control chuyển đổi layer nền
-  var baseMaps = {
-    "🛰️ Google Hybrid": googleHybrid,
-    "🌍 OpenStreetMap": osm,
-    "🗺️ Google Satellite": googleSatellite,
-    "⛰️ Google Terrain": googleTerrain
-  };
-  
-  // ===== TẠO NÚT HOME =====
-  L.Control.HomeButton = L.Control.extend({
+  // ===== NÚT HOME THEO CHUẨN LEAFLET =====
+  L.Control.Home = L.Control.extend({
+    options: {
+      position: 'topleft'
+    },
+    
     onAdd: function(map) {
-      var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-control');
+      var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
       
-      var button = L.DomUtil.create('button', 'control-button', container);
-      button.innerHTML = '🏠 Home';
-      button.title = 'Quay về vị trí mặc định';
+      container.style.backgroundColor = 'white';
+      container.style.backgroundImage = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtMyA5IDktNyA5IDd2MTFhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ6Ii8+PHBvbHlsaW5lIHBvaW50cz0iOSAyMiA5IDEyIDE1IDEyIDE1IDIyIi8+PC9zdmc+')";
+      container.style.backgroundSize = '20px 20px';
+      container.style.backgroundPosition = 'center';
+      container.style.backgroundRepeat = 'no-repeat';
+      container.style.width = '30px';
+      container.style.height = '30px';
+      container.style.cursor = 'pointer';
+      container.title = 'Quay về vị trí mặc định';
       
-      L.DomEvent.on(button, 'click', function(e) {
-        L.DomEvent.stopPropagation(e);
+      container.onclick = function() {
         if (defaultView) {
           map.fitBounds(defaultView);
         }
-      });
+      }
       
       return container;
     }
   });
   
-  L.control.homeButton = function(opts) {
-    return new L.Control.HomeButton(opts);
+  L.control.home = function(opts) {
+    return new L.Control.Home(opts);
   }
   
-  L.control.homeButton({ position: 'topleft' }).addTo(map);
+  L.control.home({ position: 'topleft' }).addTo(map);
   
-  // ===== TẠO NÚT BẬT/TẮT AUTO ZOOM =====
-  L.Control.AutoZoomToggle = L.Control.extend({
+  // ===== THANH TRƯỢT KIỂM SOÁT ĐỘ TRONG SUỐT =====
+  L.Control.OpacitySlider = L.Control.extend({
+    options: {
+      position: 'topright'
+    },
+    
     onAdd: function(map) {
-      var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-control');
+      var container = L.DomUtil.create('div', 'leaflet-control opacity-control');
       
-      var label = L.DomUtil.create('label', 'toggle-label', container);
+      var label = L.DomUtil.create('label', '', container);
+      label.innerHTML = '🎨 Độ trong suốt:';
       
-      var toggleSwitch = L.DomUtil.create('div', 'toggle-switch', label);
-      var input = L.DomUtil.create('input', '', toggleSwitch);
-      input.type = 'checkbox';
-      input.checked = autoZoomEnabled;
-      input.id = 'autoZoomToggle';
+      var sliderContainer = L.DomUtil.create('div', '', container);
       
-      var slider = L.DomUtil.create('span', 'slider', toggleSwitch);
+      var slider = L.DomUtil.create('input', '', sliderContainer);
+      slider.type = 'range';
+      slider.min = '0';
+      slider.max = '1';
+      slider.step = '0.1';
+      slider.value = currentOpacity;
       
-      var text = L.DomUtil.create('span', '', label);
-      text.innerHTML = '🔍 Auto Zoom';
+      var valueDisplay = L.DomUtil.create('span', 'opacity-value', sliderContainer);
+      valueDisplay.innerHTML = currentOpacity;
       
-      L.DomEvent.on(input, 'change', function(e) {
-        L.DomEvent.stopPropagation(e);
-        autoZoomEnabled = e.target.checked;
-        console.log('Auto Zoom:', autoZoomEnabled ? 'BẬT' : 'TẮT');
+      L.DomEvent.on(slider, 'input', function(e) {
+        currentOpacity = parseFloat(e.target.value);
+        valueDisplay.innerHTML = currentOpacity.toFixed(1);
+        
+        if (usaStatesLayer) {
+          usaStatesLayer.setStyle({
+            fillOpacity: currentOpacity
+          });
+        }
       });
       
       // Ngăn sự kiện click lan ra map
       L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
       
       return container;
     }
   });
   
-  L.control.autoZoomToggle = function(opts) {
-    return new L.Control.AutoZoomToggle(opts);
+  L.control.opacitySlider = function(opts) {
+    return new L.Control.OpacitySlider(opts);
   }
   
-  L.control.autoZoomToggle({ position: 'topleft' }).addTo(map);
+  L.control.opacitySlider({ position: 'topright' }).addTo(map);
   
   // ===== LOAD FILE GEOJSON =====
   fetch('polygon_stateusa_27112025.geojson')
@@ -231,16 +199,19 @@
       // Kiểm tra thuộc tính
       console.log('Thuộc tính có sẵn:', data.features[0].properties);
       
-      var usaStatesLayer = L.geoJSON(data, {
+      // Biến để lưu trạng thái auto zoom (dùng trong closure)
+      var autoZoomEnabled = true;
+      
+      usaStatesLayer = L.geoJSON(data, {
         style: function(feature) {
           // Tạo màu ngẫu nhiên cho mỗi bang
           var randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
           return {
-            color: '#2c3e50',           // Màu viền
+            color: '#2c3e50',
             weight: 2,
             opacity: 1,
-            fillColor: randomColor,     // Màu tô ngẫu nhiên
-            fillOpacity: 0.5            // ĐỘ TRONG SUỐT 0.5
+            fillColor: randomColor,
+            fillOpacity: currentOpacity
           };
         },
         
@@ -248,35 +219,18 @@
           // Tạo nội dung popup
           var popupContent = '<div style="font-family: Arial;">';
           
-          // Hiển thị REF làm tiêu đề nếu có
           if (feature.properties.ref) {
             popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 ' + feature.properties.ref + '</h3>';
           } else {
             popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 Bang Mỹ</h3>';
           }
           
-          // Hiển thị tất cả thuộc tính
           for (var prop in feature.properties) {
             popupContent += '<b>' + prop + ':</b> ' + feature.properties[prop] + '<br>';
           }
           popupContent += '</div>';
           
           layer.bindPopup(popupContent);
-          
-          // HIỂN THỊ LABEL REF LUÔN TRÊN POLYGON (không cần hover)
-          if (feature.properties.ref) {
-            var center = layer.getBounds().getCenter();
-            var label = L.marker(center, {
-              icon: L.divIcon({
-                className: 'state-label',
-                html: feature.properties.ref,
-                iconSize: null
-              })
-            }).addTo(map);
-            
-            // Lưu label vào layer để có thể quản lý sau
-            layer.label = label;
-          }
           
           // Hiệu ứng hover và click
           layer.on({
@@ -285,15 +239,16 @@
               layer.setStyle({
                 weight: 4,
                 color: '#ff6600',
-                fillOpacity: 0.8
+                fillOpacity: Math.min(currentOpacity + 0.3, 1)
               });
             },
             mouseout: function(e) {
               usaStatesLayer.resetStyle(e.target);
             },
             click: function(e) {
-              // Chỉ zoom khi autoZoomEnabled = true
-              if (autoZoomEnabled) {
+              // Lấy trạng thái auto zoom từ checkbox
+              var checkbox = document.getElementById('autoZoomCheckbox');
+              if (checkbox && checkbox.checked) {
                 map.fitBounds(e.target.getBounds());
               }
             }
@@ -301,17 +256,52 @@
         }
       }).addTo(map);
       
-      // LƯU VỊ TRÍ MẶC ĐỊNH = BOUNDS CỦA GEOJSON
+      // Lưu vị trí mặc định
       defaultView = usaStatesLayer.getBounds();
-      
-      // Tự động zoom vào phạm vi các bang Mỹ
       map.fitBounds(defaultView);
       
-      // Thêm vào control layers
-      var overlayMaps = {
-        "🗺️ Bang Mỹ": usaStatesLayer
+      // ===== TẠO CONTROL LAYERS VỚI AUTO ZOOM =====
+      var baseMaps = {
+        "🌍 OpenStreetMap": osm,
+        "🛰️ Google Hybrid": googleHybrid,
+        "🗺️ Google Satellite": googleSatellite,
+        "⛰️ Google Terrain": googleTerrain,
+        "💡 CARTO Light": cartoLight,
+        "🌙 CARTO Dark": cartoDark,
+        "🗺️ CARTO Voyager": cartoVoyager
       };
-      L.control.layers(baseMaps, overlayMaps).addTo(map);
+      
+      var overlayMaps = {
+        "🗺️ Bang Mỹ": usaStatesLayer,
+        '<input type="checkbox" id="autoZoomCheckbox" checked> <label for="autoZoomCheckbox" style="font-weight:normal; cursor:pointer;">🔍 Auto Zoom khi click</label>': L.layerGroup() // Dummy layer
+      };
+      
+      var layerControl = L.control.layers(baseMaps, overlayMaps, {
+        collapsed: false
+      }).addTo(map);
+      
+      // Style cho checkbox trong layer control
+      setTimeout(function() {
+        var checkbox = document.getElementById('autoZoomCheckbox');
+        if (checkbox) {
+          checkbox.style.marginRight = '5px';
+          checkbox.style.cursor = 'pointer';
+          
+          // Ngăn checkbox tắt layer
+          checkbox.addEventListener('click', function(e) {
+            e.stopPropagation();
+          });
+          
+          // Ngăn label tắt layer
+          var label = checkbox.nextElementSibling;
+          if (label) {
+            label.addEventListener('click', function(e) {
+              e.stopPropagation();
+              checkbox.checked = !checkbox.checked;
+            });
+          }
+        }
+      }, 100);
       
     })
     .catch(error => {
