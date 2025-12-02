@@ -11,33 +11,129 @@
       height: 100vh;
       width: 100%;
     }
+    
+    /* Style cho các nút điều khiển */
+    .custom-control {
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      margin: 10px;
+    }
+    
+    .control-button {
+      background: #3388ff;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px 0;
+      display: block;
+      width: 100%;
+      transition: background 0.3s;
+    }
+    
+    .control-button:hover {
+      background: #2266dd;
+    }
+    
+    .control-button.active {
+      background: #ff6600;
+    }
+    
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+      margin-right: 10px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: #ff6600;
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
   </style>
 </head>
 <body>
 <h3 style="text-align:center;">WebGIS cơ bản với Leaflet.js, thêm lớp nền ảnh vệ tinh</h3>
 <div id="map"></div>
+
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Khởi tạo bản đồ và đặt vị trí trung tâm (tọa độ Việt Nam)
-  var map = L.map('map').setView([20.989470032335152, 105.79574580114927], 17);
- 
+  // Khởi tạo bản đồ và đặt vị trí trung tâm mặc định
+  var defaultView = {
+    center: [20.989470032335152, 105.79574580114927],
+    zoom: 17
+  };
+  
+  var map = L.map('map').setView(defaultView.center, defaultView.zoom);
+  
+  // Biến để lưu trạng thái auto zoom
+  var autoZoomEnabled = true;
+  
   // Các layer nền
   var googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
     maxZoom: 20,
     subdomains: ['mt0','mt1','mt2','mt3'],
     attribution: '© Google Maps'
   });
+  
   var googleSatellite = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
     maxZoom: 20,
     subdomains: ['mt0','mt1','mt2','mt3'],
     attribution: '© Google Satellite'
   });
+  
   var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
     maxZoom: 20,
     subdomains: ['mt0','mt1','mt2','mt3'],
     attribution: '© Google Terrain'
   });
+  
   var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap contributors'
@@ -55,68 +151,156 @@
   };
   
   // Thêm 1 marker (ví dụ tại Hà Nội)
-  //var marker = L.marker([20.989716969145746, 105.79573486594445]).addTo(map);
-  //marker.bindPopup("Trường Đại học Hà Nội").openPopup();
+  var marker = L.marker([20.989716969145746, 105.79573486594445]).addTo(map);
+  marker.bindPopup("Trường Đại học Hà Nội").openPopup();
   
-  // Load file GeoJSON các bang Mỹ
-fetch('polygon_stateusa_27112025.geojson')
-  .then(response => response.json())
-  .then(data => {
-    // Kiểm tra thuộc tính
-    console.log('Thuộc tính:', data.features[0].properties);
-    
-    var usaStatesLayer = L.geoJSON(data, {
-      style: function(feature) {
-        return {
-          color: '#2c3e50',
-          weight: 2,
-          opacity: 1,
-          fillColor: '#' + Math.floor(Math.random()*16777215).toString(16),
-          fillOpacity: 0.6
-        };
-      },
+  // ===== TẠO NÚT HOME =====
+  L.Control.HomeButton = L.Control.extend({
+    onAdd: function(map) {
+      var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-control');
       
-      onEachFeature: function(feature, layer) {
-        var popupContent = '<div style="font-family: Arial;">';
-        popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 Thông tin Bang</h3>';
-        
-        for (var prop in feature.properties) {
-          popupContent += '<b>' + prop + ':</b> ' + feature.properties[prop] + '<br>';
-        }
-        popupContent += '</div>';
-        
-        layer.bindPopup(popupContent);
-        
-        layer.on({
-          mouseover: function(e) {
-            var layer = e.target;
-            layer.setStyle({
-              weight: 4,
-              color: '#ff6600',
-              fillOpacity: 0.9
-            });
-          },
-          mouseout: function(e) {
-            usaStatesLayer.resetStyle(e.target);
-          },
-          click: function(e) {
-            map.fitBounds(e.target.getBounds());
-          }
-        });
-      }
-    }).addTo(map);
-    
-    map.fitBounds(usaStatesLayer.getBounds());
-    
-    var overlayMaps = {
-      "🗺️ Bang Mỹ": usaStatesLayer
-    };
-    L.control.layers(baseMaps, overlayMaps).addTo(map);
-  })
-  .catch(error => {
-    console.error('Lỗi:', error);
+      var button = L.DomUtil.create('button', 'control-button', container);
+      button.innerHTML = '🏠 Home';
+      button.title = 'Quay về vị trí mặc định';
+      
+      L.DomEvent.on(button, 'click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        map.setView(defaultView.center, defaultView.zoom);
+      });
+      
+      return container;
+    }
   });
+  
+  L.control.homeButton = function(opts) {
+    return new L.Control.HomeButton(opts);
+  }
+  
+  L.control.homeButton({ position: 'topleft' }).addTo(map);
+  
+  // ===== TẠO NÚT BẬT/TẮT AUTO ZOOM =====
+  L.Control.AutoZoomToggle = L.Control.extend({
+    onAdd: function(map) {
+      var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control custom-control');
+      
+      var label = L.DomUtil.create('label', 'toggle-label', container);
+      
+      var toggleSwitch = L.DomUtil.create('div', 'toggle-switch', label);
+      var input = L.DomUtil.create('input', '', toggleSwitch);
+      input.type = 'checkbox';
+      input.checked = autoZoomEnabled;
+      input.id = 'autoZoomToggle';
+      
+      var slider = L.DomUtil.create('span', 'slider', toggleSwitch);
+      
+      var text = L.DomUtil.create('span', '', label);
+      text.innerHTML = '🔍 Auto Zoom';
+      
+      L.DomEvent.on(input, 'change', function(e) {
+        L.DomEvent.stopPropagation(e);
+        autoZoomEnabled = e.target.checked;
+        console.log('Auto Zoom:', autoZoomEnabled ? 'BẬT' : 'TẮT');
+      });
+      
+      // Ngăn sự kiện click lan ra map
+      L.DomEvent.disableClickPropagation(container);
+      
+      return container;
+    }
+  });
+  
+  L.control.autoZoomToggle = function(opts) {
+    return new L.Control.AutoZoomToggle(opts);
+  }
+  
+  L.control.autoZoomToggle({ position: 'topleft' }).addTo(map);
+  
+  // ===== LOAD FILE GEOJSON =====
+  fetch('polygon_stateusa_27112025.geojson')
+    .then(response => response.json())
+    .then(data => {
+      // Kiểm tra thuộc tính
+      console.log('Thuộc tính có sẵn:', data.features[0].properties);
+      
+      var usaStatesLayer = L.geoJSON(data, {
+        style: function(feature) {
+          // Tạo màu ngẫu nhiên cho mỗi bang
+          var randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+          return {
+            color: '#2c3e50',           // Màu viền
+            weight: 2,
+            opacity: 1,
+            fillColor: randomColor,     // Màu tô ngẫu nhiên
+            fillOpacity: 0.6
+          };
+        },
+        
+        onEachFeature: function(feature, layer) {
+          // Tạo nội dung popup - HIỂN thị REF làm tiêu đề
+          var popupContent = '<div style="font-family: Arial;">';
+          
+          // Hiển thị REF làm tiêu đề nếu có
+          if (feature.properties.ref) {
+            popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 ' + feature.properties.ref + '</h3>';
+          } else {
+            popupContent += '<h3 style="margin: 0 0 10px 0; color: #2c5282;">🇺🇸 Bang Mỹ</h3>';
+          }
+          
+          // Hiển thị tất cả thuộc tính
+          for (var prop in feature.properties) {
+            popupContent += '<b>' + prop + ':</b> ' + feature.properties[prop] + '<br>';
+          }
+          popupContent += '</div>';
+          
+          layer.bindPopup(popupContent);
+          
+          // Hiệu ứng hover và click
+          layer.on({
+            mouseover: function(e) {
+              var layer = e.target;
+              layer.setStyle({
+                weight: 4,
+                color: '#ff6600',
+                fillOpacity: 0.9
+              });
+              
+              // Hiển thị tooltip với REF khi hover
+              if (feature.properties.ref) {
+                layer.bindTooltip(feature.properties.ref, {
+                  permanent: false,
+                  direction: 'center',
+                  className: 'state-tooltip'
+                }).openTooltip();
+              }
+            },
+            mouseout: function(e) {
+              usaStatesLayer.resetStyle(e.target);
+              layer.closeTooltip();
+            },
+            click: function(e) {
+              // Chỉ zoom khi autoZoomEnabled = true
+              if (autoZoomEnabled) {
+                map.fitBounds(e.target.getBounds());
+              }
+            }
+          });
+        }
+      }).addTo(map);
+      
+      // Tự động zoom vào phạm vi các bang Mỹ
+      map.fitBounds(usaStatesLayer.getBounds());
+      
+      // Thêm vào control layers
+      var overlayMaps = {
+        "🗺️ Bang Mỹ": usaStatesLayer
+      };
+      L.control.layers(baseMaps, overlayMaps).addTo(map);
+      
+    })
+    .catch(error => {
+      console.error('Lỗi khi load GeoJSON:', error);
+      alert('Không thể tải file polygon_stateusa_27112025.geojson. Kiểm tra console để biết thêm chi tiết.');
+    });
 </script>
 </body>
 </html>
-
