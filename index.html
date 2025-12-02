@@ -95,6 +95,19 @@
     input:checked + .slider:before {
       transform: translateX(26px);
     }
+    
+    /* Style cho label hiển thị REF trên polygon */
+    .state-label {
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #2c3e50;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-weight: bold;
+      font-size: 13px;
+      color: #2c3e50;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -104,13 +117,11 @@
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Khởi tạo bản đồ và đặt vị trí trung tâm mặc định
-  var defaultView = {
-    center: [20.989470032335152, 105.79574580114927],
-    zoom: 17
-  };
+  // Khởi tạo bản đồ - VỊ TRÍ MẶC ĐỊNH SẼ ĐƯỢC CÀI ĐẶT SAU
+  var map = L.map('map');
   
-  var map = L.map('map').setView(defaultView.center, defaultView.zoom);
+  // Biến để lưu view mặc định (sẽ được cập nhật sau khi load GeoJSON)
+  var defaultView = null;
   
   // Biến để lưu trạng thái auto zoom
   var autoZoomEnabled = true;
@@ -150,10 +161,6 @@
     "⛰️ Google Terrain": googleTerrain
   };
   
-  // Thêm 1 marker (ví dụ tại Hà Nội)
-  var marker = L.marker([20.989716969145746, 105.79573486594445]).addTo(map);
-  marker.bindPopup("Trường Đại học Hà Nội").openPopup();
-  
   // ===== TẠO NÚT HOME =====
   L.Control.HomeButton = L.Control.extend({
     onAdd: function(map) {
@@ -165,7 +172,9 @@
       
       L.DomEvent.on(button, 'click', function(e) {
         L.DomEvent.stopPropagation(e);
-        map.setView(defaultView.center, defaultView.zoom);
+        if (defaultView) {
+          map.fitBounds(defaultView);
+        }
       });
       
       return container;
@@ -231,12 +240,12 @@
             weight: 2,
             opacity: 1,
             fillColor: randomColor,     // Màu tô ngẫu nhiên
-            fillOpacity: 0.6
+            fillOpacity: 0.5            // ĐỘ TRONG SUỐT 0.5
           };
         },
         
         onEachFeature: function(feature, layer) {
-          // Tạo nội dung popup - HIỂN thị REF làm tiêu đề
+          // Tạo nội dung popup
           var popupContent = '<div style="font-family: Arial;">';
           
           // Hiển thị REF làm tiêu đề nếu có
@@ -254,6 +263,21 @@
           
           layer.bindPopup(popupContent);
           
+          // HIỂN THỊ LABEL REF LUÔN TRÊN POLYGON (không cần hover)
+          if (feature.properties.ref) {
+            var center = layer.getBounds().getCenter();
+            var label = L.marker(center, {
+              icon: L.divIcon({
+                className: 'state-label',
+                html: feature.properties.ref,
+                iconSize: null
+              })
+            }).addTo(map);
+            
+            // Lưu label vào layer để có thể quản lý sau
+            layer.label = label;
+          }
+          
           // Hiệu ứng hover và click
           layer.on({
             mouseover: function(e) {
@@ -261,21 +285,11 @@
               layer.setStyle({
                 weight: 4,
                 color: '#ff6600',
-                fillOpacity: 0.9
+                fillOpacity: 0.8
               });
-              
-              // Hiển thị tooltip với REF khi hover
-              if (feature.properties.ref) {
-                layer.bindTooltip(feature.properties.ref, {
-                  permanent: false,
-                  direction: 'center',
-                  className: 'state-tooltip'
-                }).openTooltip();
-              }
             },
             mouseout: function(e) {
               usaStatesLayer.resetStyle(e.target);
-              layer.closeTooltip();
             },
             click: function(e) {
               // Chỉ zoom khi autoZoomEnabled = true
@@ -287,8 +301,11 @@
         }
       }).addTo(map);
       
+      // LƯU VỊ TRÍ MẶC ĐỊNH = BOUNDS CỦA GEOJSON
+      defaultView = usaStatesLayer.getBounds();
+      
       // Tự động zoom vào phạm vi các bang Mỹ
-      map.fitBounds(usaStatesLayer.getBounds());
+      map.fitBounds(defaultView);
       
       // Thêm vào control layers
       var overlayMaps = {
