@@ -85,6 +85,10 @@
     maxZoom: 19,
     attribution: '© OpenStreetMap contributors'
   });
+
+   var osmVector = L.tileLayer('https://basemaps.arcgis.com/arcgis/rest/services/OpenStreetMap_v2/VectorTileServer', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors'  
   
   // Thêm các lớp CARTO
   var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -311,3 +315,4 @@
 </script>
 </body>
 </html>
+
